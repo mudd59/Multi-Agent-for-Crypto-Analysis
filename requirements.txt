@@ -1,0 +1,12 @@
+streamlit
+pandas
+numpy
+yfinance
+matplotlib
+python-dotenv
+feedparser
+pydantic
+langgraph
+langchain
+langchain-openai
+tavily-python
