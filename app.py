@@ -1,11 +1,64 @@
 from __future__ import annotations
 
+import os
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
+from dotenv import load_dotenv
 
-from src.config import COINS, get_api_status
+from src.config import COINS
 from src.graph import build_graph
+from src.llm import is_llm_available
+
+
+load_dotenv()
+
+
+def get_secret(name: str, default: str = "") -> str:
+    """
+    Liest Werte aus:
+    1. Environment / .env lokal
+    2. Streamlit Secrets in der Cloud
+    """
+    value = os.getenv(name)
+    if value:
+        return value.strip()
+
+    try:
+        value = st.secrets.get(name, default)
+        if value:
+            return str(value).strip()
+    except Exception:
+        pass
+
+    return default
+
+
+def sync_streamlit_secrets_to_env() -> None:
+    """
+    Wichtig für Streamlit Cloud:
+    Wenn Secrets vorhanden sind, werden sie zusätzlich in os.environ gesetzt.
+    Dadurch können auch andere Dateien wie news_fetcher.py os.getenv(...) nutzen.
+    """
+    secret_names = [
+        "USE_LLM",
+        "LLM_PROVIDER",
+        "HF_TOKEN",
+        "HF_MODEL",
+        "TAVILY_API_KEY",
+        "OPENAI_API_KEY",
+        "OPENAI_BASE_URL",
+        "OPENAI_MODEL",
+    ]
+
+    for name in secret_names:
+        value = get_secret(name, "")
+        if value:
+            os.environ[name] = value
+
+
+sync_streamlit_secrets_to_env()
 
 
 st.set_page_config(
@@ -18,8 +71,12 @@ st.title("📈 LangGraph Multi-Agent Crypto Analyzer")
 
 st.write(
     """
-Dieses Dashboard nutzt **LangGraph + LangChain + LLM Prompts**, um mehrere Agenten zu verbinden.
-Der wichtige Researcher-Team-Teil läuft jetzt wie im Bild: **Bullish Agent und Bearish Agent analysieren parallel** und gehen danach gemeinsam in den **Discussion/Debate Agent**.
+Dieses Dashboard nutzt **LangGraph + LangChain + Hugging Face LLM Prompts**, 
+um mehrere Agenten zu verbinden.
+
+Der wichtige Researcher-Team-Teil läuft wie im Bild:  
+**Bullish Agent und Bearish Agent analysieren parallel** und gehen danach gemeinsam in den 
+**Discussion / Debate Agent**.
 
 Flow: Data → Indicator → News → Sentiment → Bullish/Bearish parallel → Debate → Trader → Risk → Manager → Backtest → Report.
 """
@@ -39,11 +96,26 @@ graph = get_graph()
 # =========================
 st.sidebar.header("⚙️ Einstellungen")
 
-api_status = get_api_status()
 st.sidebar.write("### API Status")
-st.sidebar.write("OpenAI LLM:", "✅ aktiv" if api_status["openai_llm"] else "⚠️ nicht aktiv")
-st.sidebar.write("Model:", api_status["openai_model"])
-st.sidebar.write("Tavily News:", "✅ aktiv" if api_status["tavily_news"] else "⚠️ RSS Fallback")
+
+llm_provider = get_secret("LLM_PROVIDER", "none").lower()
+hf_model = get_secret("HF_MODEL", "")
+local_model = get_secret("OPENAI_MODEL", "")
+tavily_key = get_secret("TAVILY_API_KEY", "")
+
+if is_llm_available():
+    if llm_provider == "huggingface":
+        st.sidebar.write("LLM:", "✅ Hugging Face aktiv")
+        st.sidebar.write("Model:", hf_model if hf_model else "nicht gesetzt")
+    elif llm_provider == "local":
+        st.sidebar.write("LLM:", "✅ LocalAI aktiv")
+        st.sidebar.write("Model:", local_model if local_model else "nicht gesetzt")
+    else:
+        st.sidebar.write("LLM:", "✅ aktiv")
+else:
+    st.sidebar.write("LLM:", "⚠️ nicht aktiv")
+
+st.sidebar.write("Tavily News:", "✅ aktiv" if tavily_key else "⚠️ RSS Fallback")
 st.sidebar.write("yfinance:", "✅ ohne API Key")
 
 selected_coin_names = st.sidebar.multiselect(
@@ -245,9 +317,14 @@ for _, row in summary_df.iterrows():
         st.write("### News")
         if result["news_items"]:
             for item in result["news_items"][:5]:
-                st.write(f"- **{item.get('title', '')}**")
-                if item.get("link"):
-                    st.caption(item.get("link"))
+                source = item.get("source", "Unknown")
+                title = item.get("title", "")
+                link = item.get("link", "")
+
+                st.write(f"- **[{source}] {title}**")
+
+                if link:
+                    st.caption(link)
         else:
             st.write("Keine News gefunden.")
 
@@ -267,6 +344,9 @@ for _, row in summary_df.iterrows():
                 st.write("❌", item)
         else:
             st.write("Keine bearishen Signale.")
+
+        st.write("### Debate Summary")
+        st.write(result.get("debate_summary", ""))
 
         st.write("### Preis mit SMA20 und SMA50")
         fig, ax = plt.subplots(figsize=(10, 4))
@@ -301,12 +381,12 @@ st.subheader("📌 Projekt-Erklärung")
 
 st.markdown(
     """
-Dieses Projekt ist jetzt sauber aufgeteilt:
+Dieses Projekt ist sauber aufgeteilt:
 
 - **Data Agent:** lädt historische Coin-Daten mit `yfinance`.
 - **Indicator Agent:** berechnet SMA20, SMA50, RSI, Return und Volatility.
 - **News Agent:** sammelt aktuelle News über RSS oder Tavily.
-- **Sentiment Agent:** bewertet die News-Stimmung mit Regeln oder LLM.
+- **Sentiment Agent:** bewertet die News-Stimmung mit Regeln oder Hugging Face LLM.
 - **Bullish Agent:** sucht Kaufargumente.
 - **Bearish Agent:** sucht Risiko- und Verkaufsargumente.
 - **Debate Agent:** bekommt beide Ergebnisse und vergleicht Bullish vs. Bearish wie eine Discussion.
