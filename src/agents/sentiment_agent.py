@@ -51,7 +51,7 @@ def sentiment_agent(state: TradingState) -> dict:
 
         structured_llm = llm.with_structured_output(
             AgentAnalysis,
-            method="json_schema",
+            method="json_mode",
             include_raw=True,
         )
 
