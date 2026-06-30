@@ -15,7 +15,7 @@ Return structured output:
 - score from 0 to 10
 - confidence from 0 to 100
 - evidence as concrete bullet points
-- summary in simple German
+- summary in simple English
 """
 
 BEARISH_PROMPT = """
@@ -35,7 +35,7 @@ Return structured output:
 - score from 0 to 10
 - confidence from 0 to 100
 - evidence as concrete bullet points
-- summary in simple German
+- summary in simple English
 """
 
 SENTIMENT_PROMPT = """
@@ -49,7 +49,7 @@ Return structured output:
 - score from -10 to +10
 - confidence from 0 to 100
 - evidence as concrete bullet points
-- summary in simple German
+- summary in simple English
 """
 
 TRADER_PROMPT = """
@@ -68,7 +68,7 @@ Debate Summary: {debate_summary}
 Return structured output:
 - signal: BUY, SELL or HOLD
 - confidence from 0 to 100
-- reasoning in simple German
+- reasoning in simple English
 """
 
 MANAGER_PROMPT = """
@@ -91,7 +91,7 @@ Rules:
 Return structured output:
 - final_decision: BUY, SELL or HOLD
 - position_size_pct from 0 to 30
-- reasoning in simple German
+- reasoning in simple English
 """
 
 REPORT_PROMPT = """
