@@ -67,7 +67,7 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("📈 LangGraph Multi-Agent Crypto Analyzer")
+st.title("📈 Multi-Agent Crypto Analyzer")
 
 st.write(
     """
